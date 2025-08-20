@@ -1,9 +1,15 @@
 import ctypes
+import weakref
 from . import alc
 from .exceptions import OalError
 from .listener import Listener
+from ._internal import _ensure_context, _default_device
 from enum import IntEnum
 from .enums import EffectType, FilterType
+
+# A weak-referencing dictionary to map C context handles back to Python objects.
+# This prevents memory leaks by allowing garbage collection of unused contexts.
+_context_registry = weakref.WeakValueDictionary()
 
 _ATTRIBUTES = {
     'frequency': alc.ALC_FREQUENCY,
@@ -87,6 +93,7 @@ class Context:
         self._device_obj = device        
         self._as_parameter_ = self._context
         self._listener = Listener()
+        _context_registry[self._context] = self
 
     @property
     def listener(self):
@@ -244,6 +251,19 @@ class Context:
         if not alc.alcMakeContextCurrent(self._context):
             raise OalError("Failed to make context current")
 
+    def make_thread_current(self):
+        """
+        Makes this context the active one for the current thread only.
+        Requires the ALC_EXT_thread_local_context extension.
+        """
+        proc = self.device._get_ext_proc(
+            'alcSetThreadContext',
+            [ctypes.c_void_p],
+            ctypes.c_uint8 # ALCboolean
+        )
+        if not proc(self._context):
+            raise OalError("Failed to make thread-local context current")
+
     def suspend(self):
         """
         Suspends processing for this context.
@@ -266,6 +286,46 @@ class Context:
     def destroy(self):
         """Destroys the context and clears the current context for this thread."""
         if self._context:
+            if self._context in _context_registry:
+                del _context_registry[self._context]
+
             alc.alcDestroyContext(self._context)
             alc.alcMakeContextCurrent(None)
             self._context = None
+
+    @staticmethod
+    def get_thread_context():
+        """
+        Gets the active context for the current thread.
+        Requires the ALC_EXT_thread_local_context extension.
+
+        Returns:
+            Context or None: The active Context object for this thread, or None
+                             if no thread-local context is set.
+        """
+        
+        device = None
+        if _context_registry:
+            # The iterator gives us the handle, the value is the Context object
+            first_context = next(iter(_context_registry.values()))
+            device = first_context.device
+        else:
+            # If no contexts exist at all, we must create a default one
+            # to get a device handle.
+            _ensure_context()
+            device = _default_device
+        if not device or device.is_closed:
+            raise OalError("Could not find a valid device to query thread context.")
+
+        proc = device._get_ext_proc(
+            'alcGetThreadContext',
+            [], # no arguments
+            ctypes.c_void_p
+        )
+        
+        context_handle = proc()
+        if not context_handle:
+            return None
+            
+        return _context_registry.get(context_handle)
+

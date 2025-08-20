@@ -3,7 +3,7 @@ import warnings
 import sys
 from . import al
 from .al import _get_al_ext_proc, ALint64SOFT
-from .enums import SourceType
+from .enums import SourceType, DirectChannelsRemixMode, SpatializeMode
 from .environment import get_available_resamplers
 
 MAX_FLOAT = sys.float_info.max
@@ -537,23 +537,43 @@ class Source:
         self._set_float_property(al.AL_SOURCE_RADIUS, radius)
 
     @property
-    def direct_channels(self):
+    def direct_channels(self) -> DirectChannelsRemixMode:
         """
-        Gets whether direct channel mapping is enabled for this source.
-        
-        If True, the source's channels are mapped directly to the output
-        speakers, bypassing the 3D spatializer.
+        Controls whether and how the source's channels are mapped directly
+        to the output speakers, bypassing the 3D spatializer.
+
+        Can be set to a value from the DirectChannelsRemixMode enum:
+        - OFF: (Default) Spatialization is enabled.
+        - DROP_UNMATCHED: Direct channels are enabled. Source channels that
+          do not map to an output speaker are dropped. (Equivalent to True).
+        - REMIX_UNMATCHED: Direct channels are enabled. Unmapped source channels
+          are remixed into the available output speakers. Requires the
+          AL_SOFT_direct_channels_remix extension.
+
+        Can also be set with a boolean for backward compatibility:
+        - True is equivalent to DROP_UNMATCHED.
+        - False is equivalent to OFF.
         """
-        return self._get_int_property(al.AL_DIRECT_CHANNELS_SOFT) == al.AL_TRUE
+        val = self._get_int_property(al.AL_DIRECT_CHANNELS_SOFT)
+        try:
+            return DirectChannelsRemixMode(val)
+        except ValueError:
+            if val == al.AL_TRUE:
+                return DirectChannelsRemixMode.DROP_UNMATCHED
+            return DirectChannelsRemixMode.OFF
 
     @direct_channels.setter
     def direct_channels(self, value):
         """
-        Enables or disables direct channel mapping for this source.
-        
-        Set to True to bypass the 3D spatializer. Ideal for background music.
+        Sets the direct channels mode for this source.
         """
-        self._set_int_property(al.AL_DIRECT_CHANNELS_SOFT, al.AL_TRUE if value else al.AL_FALSE)
+        if isinstance(value, bool):
+            mode = DirectChannelsRemixMode.DROP_UNMATCHED if value else DirectChannelsRemixMode.OFF
+            self._set_int_property(al.AL_DIRECT_CHANNELS_SOFT, mode)
+        elif isinstance(value, DirectChannelsRemixMode):
+            self._set_int_property(al.AL_DIRECT_CHANNELS_SOFT, value)
+        else:
+            raise TypeError("Value must be a boolean or a DirectChannelsRemixMode enum member.")
 
     @property
     def direct_filter(self):
@@ -594,19 +614,29 @@ class Source:
         - 'auto': The implementation decides (typically spatializes mono sources).
 
         Returns:
-            int: The underlying ALenum value (AL_TRUE, AL_FALSE, or AL_AUTO_SOFT).
+            SpatializeMode: The current spatialization mode.
         """
-        return self._get_int_property(al.AL_SOURCE_SPATIALIZE_SOFT)
+        val = self._get_int_property(al.AL_SOURCE_SPATIALIZE_SOFT)
+        return SpatializeMode(val)
 
     @spatialize.setter
     def spatialize(self, value):
-        if isinstance(value, bool):
-            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, al.AL_TRUE if value else al.AL_FALSE)
-        elif isinstance(value, str) and value.lower() == 'auto':
-            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, al.AL_AUTO_SOFT)
+        """
+        Sets the spatialization mode for this source.
+
+        Args:
+            value (SpatializeMode or bool): The desired mode.
+                - SpatializeMode.ON or True: The source is always spatialized.
+                - SpatializeMode.OFF or False: The source is never spatialized.
+                - SpatializeMode.AUTO: The implementation decides (default).
+        """
+        if isinstance(value, SpatializeMode):
+            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, value)
+        elif isinstance(value, bool):
+            mode = SpatializeMode.ON if value else SpatializeMode.OFF
+            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, mode)
         else:
-            # Allow setting the integer constant directly
-            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, int(value))
+            raise TypeError("Value must be a boolean or a SpatializeMode enum member.")
 
     @property
     def source_relative(self):

@@ -38,6 +38,22 @@ class SourceType(IntEnum):
     STREAMING = al.AL_STREAMING
     UNDETERMINED = al.AL_UNDETERMINED
 
+class DirectChannelsRemixMode(IntEnum):
+    """
+    Enumeration of remix modes for direct (non-spatialized) channels.
+    """
+    OFF = al.AL_FALSE
+    DROP_UNMATCHED = al.AL_DROP_UNMATCHED_SOFT
+    REMIX_UNMATCHED = al.AL_REMIX_UNMATCHED_SOFT
+
+class SpatializeMode(IntEnum):
+    """
+    Enumeration of modes for source spatialization.
+    """
+    OFF = al.AL_FALSE
+    ON = al.AL_TRUE
+    AUTO = al.AL_AUTO_SOFT
+
 class HrtfStatus(IntEnum):
     """
     Enumeration of possible HRTF (Head-Related Transfer Function) states

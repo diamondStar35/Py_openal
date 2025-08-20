@@ -197,6 +197,9 @@ alcCaptureSamples.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
 alcCaptureSamples.restype = None
 alcCaptureSamples.errcheck = alc_check_error
 
+LPALCSETTHREADCONTEXTPROC = ctypes.CFUNCTYPE(ctypes.c_uint8, ctypes.c_void_p)
+LPALCGETTHREADCONTEXTPROC = ctypes.CFUNCTYPE(ctypes.c_void_p)
+
 # openal-soft definitions
 alcGetStringiSOFT = lib.alcGetStringiSOFT
 alcGetStringiSOFT.argtypes = [ctypes.c_void_p, ctypes.c_int]
