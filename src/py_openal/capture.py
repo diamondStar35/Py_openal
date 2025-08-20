@@ -2,6 +2,7 @@ import ctypes
 from . import alc
 from . import al
 from .exceptions import OalError
+from .enums import AudioFormat
 
 def get_default_capture_device():
     """
@@ -41,14 +42,14 @@ def get_available_capture_devices():
 class CaptureDevice:
     """Represents a physical audio capture (input) device."""
 
-    def __init__(self, device_name=None, frequency=44100, audio_format=al.AL_FORMAT_MONO16, buffer_size=4096):
+    def __init__(self, device_name=None, frequency=44100, audio_format: AudioFormat = AudioFormat.MONO16, buffer_size=4096):
         """
         Opens a capture device.
 
         Args:
             device_name (str, optional): The name of the device to open. Defaults to the system default.
             frequency (int, optional): The sample rate to capture at. Defaults to 44100.
-            audio_format (int, optional): The format to capture in (e.g., CaptureFormat.MONO_16). Defaults to 16-bit mono.
+            audio_format (AudioFormat, optional): The format to capture in. Defaults to 16-bit mono.
             buffer_size (int, optional): The size of the internal ring buffer, in samples. Defaults to 4096.
         """
         if device_name and not isinstance(device_name, bytes):

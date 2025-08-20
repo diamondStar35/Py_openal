@@ -1,5 +1,6 @@
 from .effect import Effect
 from .. import al
+from .reverb_presets import PRESETS
 
 class Reverb(Effect):
     """
@@ -7,6 +8,21 @@ class Reverb(Effect):
     """
     def _get_effect_type(self):
         return al.AL_EFFECT_REVERB
+
+    def apply_preset(self, preset_name: str):
+        """
+        Applies a set of predefined values to this Reverb instance.
+
+        Args:
+            preset_name (str): The name of the preset to apply, e.g., 'Room'.
+                               Must be a key in the reverb_presets.PRESETS dictionary.
+        """
+        if preset_name not in PRESETS:
+            raise ValueError(f"Preset '{preset_name}' not found for standard Reverb.")
+        
+        settings = PRESETS[preset_name]
+        for key, value in settings.items():
+            setattr(self, key, value)
 
     @property
     def density(self):
@@ -106,16 +122,7 @@ class Reverb(Effect):
     @air_absorption_gainhf.setter
     def air_absorption_gainhf(self, value):
         self._set_float_property(al.AL_REVERB_AIR_ABSORPTION_GAINHF, value)
-    
-    @property
-    def room_rolloff_factor(self):
-        """Rolloff factor for room reflections. Range [0.0, 10.0]."""
-        return self._get_float_property(al.AL_ROOM_ROLLOFF_FACTOR)
-    
-    @room_rolloff_factor.setter
-    def room_rolloff_factor(self, value):
-        self._set_float_property(al.AL_ROOM_ROLLOFF_FACTOR, value)
-        
+            
     @property
     def decay_hflimit(self):
         """If true, high-frequency decay is limited by the air absorption gain. Boolean."""

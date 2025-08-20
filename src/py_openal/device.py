@@ -1,6 +1,7 @@
 import ctypes
 from . import alc
 from .exceptions import OalError
+from .enums import HrtfStatus, OutputMode
 
 _device_ext_procs = {}
 
@@ -49,12 +50,19 @@ def get_available_devices():
 
 class Device:
     """Represents a physical audio device."""
-    def __init__(self, device_specifier=None):
+    def __init__(self, device_specifier=None, **attributes):
         """
-        Opens a device.
+        Opens a device, optionally with specific attributes.
+        
+        Note: Opening a device with attributes requires resetting it immediately
+        after opening, which is a feature of the ALC_SOFT_device_reset extension.
         
         Args:
-            device_specifier: A specific device name, or None for the default.
+            device_specifier (str, optional): A specific device name, or None for the default.
+            **attributes: Keyword arguments for device configuration. These are
+                          the same as the ones for the Context constructor.
+                          Using `hrtf=True` will automatically request a stereo
+                          output format compatible with HRTF.
         """
         if device_specifier and not isinstance(device_specifier, bytes):
             device_specifier = device_specifier.encode('utf-8')
@@ -64,6 +72,20 @@ class Device:
             raise OalError("Could not open device")
         
         self._as_parameter_ = self._device
+
+        if attributes:
+            # If HRTF is requested, we must also ensure a stereo format is requested
+            # to avoid the UNSUPPORTED_FORMAT error. We add it to the attributes dict.
+            if attributes.get('hrtf') is True:
+                attributes['output_mode'] = OutputMode.STEREO_HRTF
+
+            # We need to import the builder function here to avoid circular dependencies
+            from .context import _build_attribute_list
+            attr_list = _build_attribute_list(attributes)
+            if not self.reset(attr_list):
+                # If reset fails, close the device to prevent leaving it in a bad state
+                self.close()
+                raise OalError("Failed to reset device with specified attributes.")
 
     def __enter__(self):
         return self
@@ -139,6 +161,45 @@ class Device:
                 except (KeyError, IndexError):
                     raise OalError(f"Error resuming device (code: {err}). Reopen fallback also failed.")
 
+    def reset(self, attributes=None):
+        """
+        Resets the device with a new set of attributes.
+
+        This can be used to change device properties like output frequency,
+        HRTF mode, etc., on the fly without destroying existing contexts.
+        This requires the ALC_SOFT_device_reset extension.
+
+        Args:
+            attributes (list, optional): A C-style list of integer attributes,
+                                         e.g., [alc.ALC_FREQUENCY, 48000, 0].
+                                         The list must be null-terminated (end with 0).
+                                         If None, resets with default attributes.
+        
+        Returns:
+            bool: True on success, False on failure.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+
+        proc = self._get_ext_proc(
+            'alcResetDeviceSOFT',
+            [ctypes.c_void_p, ctypes.POINTER(ctypes.c_int)],
+            ctypes.c_uint8 # ALCboolean
+        )
+
+        attr_array = None
+        if attributes:
+            if not attributes or attributes[-1] != 0:
+                raise ValueError("Attribute list must be terminated with a 0.")
+            attr_array = (ctypes.c_int * len(attributes))(*attributes)
+            
+        result = proc(self._device, attr_array)
+        err = alc.alcGetError(self._device)
+        if err != alc.ALC_NO_ERROR:
+            raise OalError("Error resetting device.")
+
+        return bool(result)
+
     def reopen(self, device_specifier=None, attributes=None):
         """
         Reopens the device with a new specifier and/or attributes.
@@ -182,6 +243,51 @@ class Device:
             
         return bool(result)
 
+    def is_extension_present(self, ext_name: str) -> bool:
+        """
+        Checks if a specific ALC extension is supported by this device.
+
+        Args:
+            ext_name (str): The name of the extension to check (e.g., "ALC_SOFT_HRTF").
+
+        Returns:
+            bool: True if the extension is present, False otherwise.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+        
+        if not isinstance(ext_name, bytes):
+            ext_name_bytes = ext_name.encode('utf-8')
+        else:
+            ext_name_bytes = ext_name
+            
+        return bool(alc.alcIsExtensionPresent(self._device, ext_name_bytes))
+
+    def get_clock(self) -> dict:
+        """
+        Gets the current device clock time and latency.
+        This requires the ALC_SOFT_device_clock extension.
+
+        The clock is a high-precision, monotonically increasing value in nanoseconds.
+        It is suitable for scheduling and synchronization.
+
+        Returns:
+            dict: A dictionary with 'clock' (int, ns) and 'latency' (int, ns) keys.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+
+        # The C function takes a pointer to an array of two 64-bit integers.
+        values = (alc.ALCint64SOFT * 2)()        
+        proc = self._get_ext_proc('alcGetInteger64vSOFT', [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.POINTER(alc.ALCint64SOFT)], None)        
+        proc(self._device, alc.ALC_DEVICE_CLOCK_LATENCY_SOFT, 2, values)
+        
+        err = alc.alcGetError(self._device)
+        if err != alc.ALC_NO_ERROR:
+            raise OalError("Error getting device clock.")
+            
+        return {'clock': values[0], 'latency': values[1]}
+
     @property
     def specifier(self):
         """The specifier string for this specific device."""
@@ -217,14 +323,92 @@ class Device:
         extensions_str = ctypes.string_at(ptr).decode('utf-8')
         return extensions_str.split(' ')
 
+    @property
+    def hrtf_status(self) -> HrtfStatus:
+        """
+        The current HRTF status for this device.
+        Requires the ALC_SOFT_HRTF extension.
+                
+        Returns:
+            HrtfStatus: The current status of the HRTF renderer.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+        
+        status = ctypes.c_int(0)
+        alc.alcGetIntegerv(self._device, alc.ALC_HRTF_STATUS_SOFT, 1, ctypes.byref(status))
+        return HrtfStatus(status.value)
+
+    @property
+    def available_hrtfs(self) -> list[dict]:
+        """
+        A list of available HRTF profiles for this device.
+        Requires the ALC_SOFT_HRTF extension.
+        
+        Returns:
+            list[dict]: A list of dictionaries, where each dictionary has
+                        'name' (str) and 'id' (int) keys for an HRTF profile.
+                        Returns an empty list if none are found.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+
+        num_hrtf = ctypes.c_int(0)
+        alc.alcGetIntegerv(self._device, alc.ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, ctypes.byref(num_hrtf))
+        
+        hrtf_list = []
+        if num_hrtf.value > 0:
+            for i in range(num_hrtf.value):
+                hrtf_name = alc.alcGetStringiSOFT(self._device, alc.ALC_HRTF_SPECIFIER_SOFT, i)
+                hrtf_list.append({'name': hrtf_name.decode('utf-8'), 'id': i})
+        return hrtf_list
+
+    @property
+    def current_hrtf(self) -> str:
+        """
+        The name of the currently active HRTF profile.
+        Requires the ALC_SOFT_HRTF extension.
+        
+        Returns:
+            str: The name of the current HRTF profile, or an empty string
+                 if HRTF is not enabled.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+
+        if self.hrtf_status != HrtfStatus.ENABLED:
+            return ""
+
+        # The spec states that alcGetStringiSOFT with index 0 will return the
+        # name of the currently enabled HRTF.
+        hrtf_name = alc.alcGetStringiSOFT(self._device, alc.ALC_HRTF_SPECIFIER_SOFT, 0)
+        return hrtf_name.decode('utf-8')
+
+    @property
+    def output_mode(self) -> OutputMode:
+        """
+        The current output mode of the device (e.g., Stereo, HRTF, 7.1 Surround).
+        Requires the ALC_SOFT_output_mode extension.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+        
+        mode = ctypes.c_int(0)
+        alc.alcGetIntegerv(self._device, alc.ALC_OUTPUT_MODE_SOFT, 1, ctypes.byref(mode))
+        return OutputMode(mode.value)
+
     def init_hrtf(self, requested_hrtf=None):
         """
         Initializes HRTF on this device. The device will be reset.
         This requires the ALC_SOFT_HRTF extension.
 
+        This method automatically requests a stereo output format, which is
+        required for HRTF to function correctly.
+
         Args:
-            requested_hrtf (str, optional): The name of a specific HRTF to use.
-                                            If None, the default is used.
+            requested_hrtf (str or int, optional): The name (str) or ID (int) of a
+                                                   specific HRTF to use. If None,
+                                                   the default is used.
         
         Returns:
             True if HRTF was successfully enabled.
@@ -235,35 +419,60 @@ class Device:
         if not alc.alcIsExtensionPresent(self._device, b"ALC_SOFT_HRTF"):
             raise OalError("HRTF extension not present on this device.")
 
-        num_hrtf = ctypes.c_int(0)
-        alc.alcGetIntegerv(self._device, alc.ALC_NUM_HRTF_SPECIFIERS_SOFT, 1, ctypes.byref(num_hrtf))
-        if num_hrtf.value == 0:
-            raise OalError("No HRTFs found on this device.")
+        attr = [
+            alc.ALC_FORMAT_CHANNELS_SOFT, alc.ALC_STEREO_SOFT,
+            alc.ALC_HRTF_SOFT, alc.ALC_TRUE
+        ]
 
-        attr = [alc.ALC_HRTF_SOFT, alc.ALC_TRUE]
-        if requested_hrtf:
-            found = False
-            for i in range(num_hrtf.value):
-                hrtf_name = alc.alcGetStringiSOFT(self._device, alc.ALC_HRTF_SPECIFIER_SOFT, i)
-                if hrtf_name.decode('utf-8') == requested_hrtf:
-                    attr.extend([alc.ALC_HRTF_ID_SOFT, i])
-                    found = True
-                    break
-            if not found:
-                raise OalError(f'HRTF "{requested_hrtf}" not found.')
+        if requested_hrtf is not None:
+            hrtf_id = -1
+            if isinstance(requested_hrtf, str):
+                # Find the ID for the given name
+                found = False
+                for hrtf_profile in self.available_hrtfs:
+                    if hrtf_profile['name'] == requested_hrtf:
+                        hrtf_id = hrtf_profile['id']
+                        found = True
+                        break
+                if not found:
+                    raise OalError(f'HRTF profile name "{requested_hrtf}" not found.')
+            elif isinstance(requested_hrtf, int):
+                hrtf_id = requested_hrtf
+            else:
+                raise TypeError("requested_hrtf must be a string (name) or an integer (ID).")
+
+            attr.extend([alc.ALC_HRTF_ID_SOFT, hrtf_id])
         
         attr.append(0) # Null terminator
-        attr_array = (ctypes.c_int * len(attr))(*attr)
-
-        if not alc.alcResetDeviceSOFT(self._device, attr_array):
+        
+        if not self.reset(attr):
             raise OalError("Failed to reset device with HRTF attributes.")
 
         # Check if HRTF is now enabled
         hrtf_state = ctypes.c_int(0)
         alc.alcGetIntegerv(self._device, alc.ALC_HRTF_SOFT, 1, ctypes.byref(hrtf_state))
         
-        return hrtf_state.value == alc.ALC_TRUE            
+        return hrtf_state.value == alc.ALC_TRUE
 
     @property
     def is_closed(self):
         return self._device is None
+
+    @property
+    def is_connected(self):
+        """
+        Checks if the audio device is still physically connected.
+        This requires the ALC_EXT_disconnect extension.
+
+        Returns:
+            bool: True if the device is connected, False otherwise.
+                  Returns False if the device has been closed via .close().
+        """
+        if self.is_closed:
+            return False
+
+        value = ctypes.c_int()
+        # alcGetIntegerv will raise an ALCError (INVALID_ENUM) if the extension
+        # is not supported, which is the desired behavior.
+        alc.alcGetIntegerv(self._device, alc.ALC_CONNECTED, 1, ctypes.byref(value))
+        return bool(value.value)

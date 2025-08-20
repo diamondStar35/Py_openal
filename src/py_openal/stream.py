@@ -2,18 +2,21 @@ import ctypes
 import warnings
 from . import al
 from .source import Source
-from .exceptions import OalWarning
+from .exceptions import OalWarning, OalError
+from .enums import AudioFormat
 
 # Default values, can be configured by the user later
 STREAM_BUFFER_COUNT = 3  # Use 3 buffers for smoother playback
 STREAM_BUFFER_SIZE = 4096 * 8
 
-def _channels_to_al_format(channels, bits):
+def _channels_to_al_format(channels, bits) -> AudioFormat:
     """Helper to determine the OpenAL format enum."""
     if channels == 1:
-        return al.AL_FORMAT_MONO16 if bits == 16 else al.AL_FORMAT_MONO8
+        return AudioFormat.MONO16 if bits == 16 else AudioFormat.MONO8
+    elif channels == 2:
+        return AudioFormat.STEREO16 if bits == 16 else AudioFormat.STEREO8
     else:
-        return al.AL_FORMAT_STEREO16 if bits == 16 else al.AL_FORMAT_STEREO8
+        raise OalError(f"Unsupported channel count for basic format conversion: {channels}")
 
 class SourceStream(Source):
     """

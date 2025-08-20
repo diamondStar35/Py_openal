@@ -1,5 +1,6 @@
 from .effect import Effect
 from .. import al
+from .eax_presets import PRESETS
 
 class EAXReverb(Effect):
     """
@@ -9,6 +10,22 @@ class EAXReverb(Effect):
     def _get_effect_type(self):
         return al.AL_EFFECT_EAXREVERB
 
+    def apply_preset(self, preset_name):
+        """
+        Applies a set of predefined values to this EAXReverb instance.
+
+        Args:
+            preset_name (str): The name of the preset to apply, e.g., 'Concert Hall'.
+                               Must be a key in the PRESETS dictionary.
+        """
+        preset_name = preset_name
+        if preset_name not in PRESETS:
+            raise ValueError(f"Preset '{preset_name}' not found.")
+        
+        settings = PRESETS[preset_name]
+        for key, value in settings.items():
+            setattr(self, key, value)
+    
     @property
     def density(self):
         """Controls the coloration of the late reverb. Range [0.0, 1.0]."""

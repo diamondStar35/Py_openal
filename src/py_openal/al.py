@@ -2,9 +2,10 @@ import sys
 import os
 import ctypes
 import ctypes.util
-
 from .al_lib import lib
 
+
+ALint64SOFT = ctypes.c_int64
 AL_NONE = 0
 AL_FALSE = 0
 AL_TRUE = 1
@@ -39,6 +40,49 @@ AL_FORMAT_MONO8 = 0x1100
 AL_FORMAT_MONO16 = 0x1101
 AL_FORMAT_STEREO8 = 0x1102
 AL_FORMAT_STEREO16 = 0x1103
+AL_FORMAT_MONO_FLOAT32 = 0x10010
+AL_FORMAT_STEREO_FLOAT32 = 0x10011
+
+# AL_EXT_double
+AL_FORMAT_MONO_DOUBLE_EXT = 0x10012
+AL_FORMAT_STEREO_DOUBLE_EXT = 0x10013
+
+# AL_EXT_MULAW
+AL_FORMAT_MONO_MULAW_EXT = 0x10014
+AL_FORMAT_STEREO_MULAW_EXT = 0x10015
+
+# AL_EXT_ALAW
+AL_FORMAT_MONO_ALAW_EXT = 0x10016
+AL_FORMAT_STEREO_ALAW_EXT = 0x10017
+
+# AL_EXT_MCFORMATS - Multi-channel formats
+AL_FORMAT_QUAD8 = 0x1204
+AL_FORMAT_QUAD16 = 0x1205
+AL_FORMAT_QUAD32 = 0x1206
+AL_FORMAT_REAR8 = 0x1207
+AL_FORMAT_REAR16 = 0x1208
+AL_FORMAT_REAR32 = 0x1209
+AL_FORMAT_51CHN8 = 0x120A
+AL_FORMAT_51CHN16 = 0x120B
+AL_FORMAT_51CHN32 = 0x120C
+AL_FORMAT_61CHN8 = 0x120D
+AL_FORMAT_61CHN16 = 0x120E
+AL_FORMAT_61CHN32 = 0x120F
+AL_FORMAT_71CHN8 = 0x1210
+AL_FORMAT_71CHN16 = 0x1211
+AL_FORMAT_71CHN32 = 0x1212
+
+# AL_EXT_BFORMAT - Ambisonic formats
+AL_FORMAT_BFORMAT2D_8 = 0x20021
+AL_FORMAT_BFORMAT2D_16 = 0x20022
+AL_FORMAT_BFORMAT2D_FLOAT32 = 0x20023
+AL_FORMAT_BFORMAT3D_8 = 0x20031
+AL_FORMAT_BFORMAT3D_16 = 0x20032
+AL_FORMAT_BFORMAT3D_FLOAT32 = 0x20033
+
+# AL_SOFT_source_spatialize
+AL_SOURCE_SPATIALIZE_SOFT = 0x1214
+AL_AUTO_SOFT = 0x0002
 AL_REFERENCE_DISTANCE = 0x1020
 AL_ROLLOFF_FACTOR = 0x1021
 AL_CONE_OUTER_GAIN = 0x1022
@@ -77,9 +121,39 @@ AL_STEREO_ANGLES = 0x1030
 AL_SOURCE_RADIUS = 0x1031
 AL_DIRECT_CHANNELS_SOFT = 0x1033
 
+# AL_SOFT_source_resampler
+AL_NUM_RESAMPLERS_SOFT = 0x1210
+AL_DEFAULT_RESAMPLER_SOFT = 0x1211
+AL_SOURCE_RESAMPLER_SOFT = 0x1212
+AL_RESAMPLER_NAME_SOFT = 0x1213
+
+# AL_SOFT_buffer_samples
+AL_MONO_SOFT = 0x1500
+AL_STEREO_SOFT = 0x1501
+AL_REAR_SOFT = 0x1502
+AL_QUAD_SOFT = 0x1503
+AL_5POINT1_SOFT = 0x1504
+AL_6POINT1_SOFT = 0x1505
+AL_7POINT1_SOFT = 0x1506
+AL_BYTE_SOFT = 0x1400
+AL_UNSIGNED_BYTE_SOFT = 0x1401
+AL_SHORT_SOFT = 0x1402
+AL_UNSIGNED_SHORT_SOFT = 0x1403
+AL_INT_SOFT = 0x1404
+AL_UNSIGNED_INT_SOFT = 0x1405
+AL_FLOAT_SOFT = 0x1406
+AL_DOUBLE_SOFT = 0x1407
+AL_INTERNAL_FORMAT_SOFT = 0x2008
+AL_BYTE_LENGTH_SOFT = 0x2009
+AL_SAMPLE_LENGTH_SOFT = 0x200A
+AL_SEC_LENGTH_SOFT = 0x200B
+
+# AL_SOFT_source_latency
+AL_SAMPLE_OFFSET_CLOCK_SOFT = 0x1202
+AL_SEC_OFFSET_CLOCK_SOFT = 0x1203
+
 # HRTF related extensions
 AL_STEREO_ANGLES = 0x1030
-
 
 # Listener properties
 AL_METERS_PER_UNIT = 0x20004
@@ -99,6 +173,7 @@ AL_EFFECTSLOT_EFFECT = 0x0001
 AL_EFFECTSLOT_GAIN = 0x0002
 AL_EFFECTSLOT_AUXILIARY_SEND_AUTO = 0x0003
 AL_EFFECTSLOT_NULL = 0x0000
+AL_EFFECTSLOT_TARGET_SOFT = 0x199C
 
 # Effect object
 AL_EFFECT_TYPE = 0x8001
@@ -256,6 +331,24 @@ for k, v in local_items:
 
 class ALError(Exception):
     pass
+
+_al_ext_procs = {}
+def _get_al_ext_proc(func_name, argtypes, restype):
+    """Internal helper to load and cache AL extension functions."""
+    if func_name in _al_ext_procs:
+        return _al_ext_procs[func_name]
+    
+    # alGetProcAddress requires a current context to be active.
+    # It's assumed this is called by a high-level function that ensures this.
+    func_ptr = alGetProcAddress(func_name.encode('utf-8'))
+    if not func_ptr:
+        raise OalError(f"AL extension function '{func_name}' not supported.")
+        
+    cfunc = ctypes.CFUNCTYPE(restype, *argtypes)(func_ptr)
+    if func_name != 'alGetStringiSOFT':
+        cfunc.errcheck = al_check_error
+    _al_ext_procs[func_name] = cfunc
+    return cfunc
 
 alGetError = lib.alGetError
 alGetError.argtypes = []
@@ -644,6 +737,11 @@ alIsBufferFormatSupportedSOFT.argtypes = [ctypes.c_int] # ALenum
 alIsBufferFormatSupportedSOFT.restype = ctypes.c_uint8 # ALboolean
 alIsBufferFormatSupportedSOFT.errcheck = al_check_error
 
+alBufferSamplesSOFT = lib.alBufferSamplesSOFT
+alBufferSamplesSOFT.argtypes = [ctypes.c_uint, ctypes.c_uint, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_void_p]
+alBufferSamplesSOFT.restype = None
+alBufferSamplesSOFT.errcheck = al_check_error
+
 # Effect objects
 alGenEffects = lib.alGenEffects
 alGenEffects.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_uint)]
@@ -811,3 +909,9 @@ alGetFilterfv = lib.alGetFilterfv
 alGetFilterfv.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ctypes.c_float)]
 alGetFilterfv.restype = None
 alGetFilterfv.errcheck = al_check_error
+
+alGetSourcei64vSOFT = lib.alGetSourcei64vSOFT
+alGetSourcei64vSOFT.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ALint64SOFT)]
+alGetSourcei64vSOFT.restype = None
+alGetSourcei64vSOFT.errcheck = al_check_error
+

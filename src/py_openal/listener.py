@@ -4,6 +4,20 @@ from . import al
 class Listener:
     """Represents the single listener in the OpenAL context."""
 
+    def _set_vector_property(self, param, vec3):
+        """Internal helper to set a 3-element vector property."""
+        try:
+            if len(vec3) != 3:
+                raise ValueError("Vector property must have 3 elements (e.g., a tuple or list).")
+        except TypeError:
+            raise TypeError("Vector property must be a sequence (e.g., a tuple or list).")
+
+        x, y, z = vec3
+        if isinstance(x, int):
+            al.alListener3i(param, int(x), int(y), int(z))
+        else:
+            al.alListener3f(param, float(x), float(y), float(z))
+
     def move(self, delta_vec):
         """
         Moves the listener by a given vector offset.
@@ -23,7 +37,7 @@ class Listener:
     def gain(self):
         """The master gain for the listener. Default is 1.0."""
         value = ctypes.c_float()
-        al.alGetListenerf(al.AL_GAIN, value)
+        al.alGetListenerf(al.AL_GAIN, ctypes.byref(value))
         return value.value
 
     @gain.setter
@@ -39,9 +53,8 @@ class Listener:
 
     @position.setter
     def position(self, vec3):
-        x, y, z = vec3
-        al.alListener3f(al.AL_POSITION, float(x), float(y), float(z))
-        
+        self._set_vector_property(al.AL_POSITION, vec3)        
+
     @property
     def velocity(self):
         """The listener's velocity in 3D space (vx, vy, vz)."""
@@ -51,9 +64,8 @@ class Listener:
 
     @velocity.setter
     def velocity(self, vec3):
-        x, y, z = vec3
-        al.alListener3f(al.AL_VELOCITY, float(x), float(y), float(z))
-        
+        self._set_vector_property(al.AL_VELOCITY, vec3)        
+
     @property
     def orientation(self):
         """
@@ -68,3 +80,21 @@ class Listener:
     def orientation(self, vec6):
         val_array = (ctypes.c_float * 6)(*vec6)
         al.alListenerfv(al.AL_ORIENTATION, val_array)
+
+    @property
+    def meters_per_unit(self):
+        """
+        The scale factor for distance units. Default is 1.0.
+        
+        This property informs OpenAL about the scale of your coordinate system.
+        For example, if your game's world units are in centimeters, you would
+        set this to 0.01. This is crucial for realistic distance attenuation
+        and EFX reverb calculations.
+        """
+        value = ctypes.c_float()
+        al.alGetListenerf(al.AL_METERS_PER_UNIT, ctypes.byref(value))
+        return value.value
+
+    @meters_per_unit.setter
+    def meters_per_unit(self, value):
+        al.alListenerf(al.AL_METERS_PER_UNIT, float(value))

@@ -2,6 +2,9 @@ import ctypes
 import warnings
 import sys
 from . import al
+from .al import _get_al_ext_proc, ALint64SOFT
+from .enums import SourceType
+from .environment import get_available_resamplers
 
 MAX_FLOAT = sys.float_info.max
 
@@ -20,6 +23,7 @@ class Source:
         self._id_value = self._id.value
         self._buffer = None
         self._distance_model_cache = 'Default'
+        self._direct_filter_cache = None
                 
         if buffer:
             self.buffer = buffer
@@ -70,6 +74,25 @@ class Source:
         """Starts or resumes playback."""
         al.alSourcePlay(self._id)
 
+    def play_at_time(self, device_clock_time: int):
+        """
+        Schedules the source to start playing at a specific device clock time.
+        Requires the AL_SOFT_source_start_delay extension.
+
+        Args:
+            device_clock_time (int): The absolute time in nanoseconds on the
+                                     device's clock when playback should begin.
+                                     Use device.get_clock() and helpers.get_future_time()
+                                     to calculate this value.
+        """
+        
+        proc = _get_al_ext_proc(
+            'alSourcePlayAtTimeSOFT',
+            [ctypes.c_uint, ALint64SOFT],
+            None
+        )
+        proc(self._id, device_clock_time)
+
     def stop(self):
         """Stops playback and resets to the beginning."""
         al.alSourceStop(self._id)
@@ -90,6 +113,20 @@ class Source:
         return value.value
 
     @property
+    def source_type(self) -> SourceType:
+        """
+        The type of the source. Read-only.
+
+        Returns:
+            SourceType: The source type enumeration, which can be one of:
+                 - SourceType.STATIC: A single buffer is attached.
+                 - SourceType.STREAMING: Buffers are queued for streaming.
+                 - SourceType.UNDETERMINED: No buffer is attached.
+        """
+        value = self._get_int_property(al.AL_SOURCE_TYPE)
+        return SourceType(value)
+
+    @property
     def sec_offset(self):
         """The playback position in seconds."""
         return self._get_float_property(al.AL_SEC_OFFSET)
@@ -108,6 +145,24 @@ class Source:
     def sample_offset(self, value):
         """Sets the playback position in samples."""
         self._set_int_property(al.AL_SAMPLE_OFFSET, value)
+
+    @property
+    def sample_offset_clock(self) -> int:
+        """
+        The playback position in samples, relative to the device clock.
+        This is a high-precision 64-bit integer value.
+        Requires the AL_SOFT_source_latency extension.
+        """
+        return self._get_int64_property(al.AL_SAMPLE_OFFSET_CLOCK_SOFT)
+
+    @property
+    def sec_offset_clock(self) -> int:
+        """
+        The playback position in nanoseconds, relative to the device clock.
+        This is a high-precision 64-bit integer value.
+        Requires the AL_SOFT_source_latency extension.
+        """
+        return self._get_int64_property(al.AL_SEC_OFFSET_CLOCK_SOFT)
 
     @property
     def byte_offset(self):
@@ -231,6 +286,87 @@ class Source:
     def cone_outer_angle(self, value):
         self._set_float_property(al.AL_CONE_OUTER_ANGLE, value)
 
+    @property
+    def air_absorption_factor(self):
+        """
+        Controls the amount of high-frequency damping due to air absorption
+        over distance. Range [0.0, 10.0]. Default is 0.0.
+        
+        A higher value means high frequencies are absorbed more quickly.
+        """
+        return self._get_float_property(al.AL_AIR_ABSORPTION_FACTOR)
+
+    @air_absorption_factor.setter
+    def air_absorption_factor(self, value):
+        self._set_float_property(al.AL_AIR_ABSORPTION_FACTOR, value)
+
+    @property
+    def room_rolloff_factor(self):
+        """
+        Controls the attenuation of the reverberated (wet) signal over
+        distance. Range [0.0, 10.0]. Default is 0.0.
+        
+        This allows the reverb from a source to fade as the listener moves away.
+        """
+        return self._get_float_property(al.AL_ROOM_ROLLOFF_FACTOR)
+
+    @room_rolloff_factor.setter
+    def room_rolloff_factor(self, value):
+        self._set_float_property(al.AL_ROOM_ROLLOFF_FACTOR, value)
+
+    @property
+    def cone_outer_gainhf(self):
+        """
+        Controls the high-frequency gain when the listener is outside the
+        source's outer cone. Range [0.0, 1.0]. Default is 1.0.
+        
+        This allows for muffling the treble of a sound when you are not
+        facing it, in addition to reducing its overall gain.
+        """
+        return self._get_float_property(al.AL_CONE_OUTER_GAINHF)
+
+    @cone_outer_gainhf.setter
+    def cone_outer_gainhf(self, value):
+        self._set_float_property(al.AL_CONE_OUTER_GAINHF, value)
+
+    @property
+    def direct_filter_gainhf_auto(self):
+        """
+        When True, automatically applies a low-pass filter to the direct
+        (dry) signal based on the air_absorption_factor. Boolean.
+        Default is True.
+        """
+        return self._get_int_property(al.AL_DIRECT_FILTER_GAINHF_AUTO) == al.AL_TRUE
+
+    @direct_filter_gainhf_auto.setter
+    def direct_filter_gainhf_auto(self, value):
+        self._set_int_property(al.AL_DIRECT_FILTER_GAINHF_AUTO, al.AL_TRUE if value else al.AL_FALSE)
+
+    @property
+    def auxiliary_send_filter_gain_auto(self):
+        """
+        When True, automatically controls the gain of the auxiliary (wet)
+        sends based on the source's distance attenuation. Boolean.
+        Default is True.
+        """
+        return self._get_int_property(al.AL_AUXILIARY_SEND_FILTER_GAIN_AUTO) == al.AL_TRUE
+
+    @auxiliary_send_filter_gain_auto.setter
+    def auxiliary_send_filter_gain_auto(self, value):
+        self._set_int_property(al.AL_AUXILIARY_SEND_FILTER_GAIN_AUTO, al.AL_TRUE if value else al.AL_FALSE)
+
+    @property
+    def auxiliary_send_filter_gainhf_auto(self):
+        """
+        When True, automatically applies a low-pass filter to the auxiliary
+        (wet) sends based on the air_absorption_factor. Boolean.
+        Default is True.
+        """
+        return self._get_int_property(al.AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO) == al.AL_TRUE
+
+    @auxiliary_send_filter_gainhf_auto.setter
+    def auxiliary_send_filter_gainhf_auto(self, value):
+        self._set_int_property(al.AL_AUXILIARY_SEND_FILTER_GAINHF_AUTO, al.AL_TRUE if value else al.AL_FALSE)
 
     def _get_vector_property(self, param):
         value = (ctypes.c_float * 3)()
@@ -245,7 +381,10 @@ class Source:
             raise TypeError("Vector property must be a sequence (e.g., a tuple or list).")
             
         x, y, z = vec3
-        al.alSource3f(self._id, param, float(x), float(y), float(z))
+        if isinstance(x, int):
+            al.alSource3i(self._id, param, int(x), int(y), int(z))
+        else:
+            al.alSource3f(self._id, param, float(x), float(y), float(z))
 
     @property
     def position(self):
@@ -282,6 +421,11 @@ class Source:
 
     def _set_int_property(self, param, value):
         al.alSourcei(self._id, param, int(value))
+
+    def _get_int64_property(self, param):
+        value = al.ALint64SOFT()
+        al.alGetSourcei64vSOFT(self._id, param, ctypes.byref(value))
+        return value.value
 
     @property
     def looping(self):
@@ -412,6 +556,59 @@ class Source:
         self._set_int_property(al.AL_DIRECT_CHANNELS_SOFT, al.AL_TRUE if value else al.AL_FALSE)
 
     @property
+    def direct_filter(self):
+        """
+        The EFX filter applied to the source's direct (non-reverberated)
+        audio path. Set to a Filter object or None.
+        
+        Note: This is a write-only property in the underlying OpenAL API.
+        PyOpenAL caches the last set value to provide a readable property.
+        """
+        return self._direct_filter_cache
+
+    @direct_filter.setter
+    def direct_filter(self, filter_obj):
+        """
+        Sets the direct path filter. This is the key to controlling the
+        dry/wet mix. To mute the dry signal, assign a filter with gain=0.
+        
+        Args:
+            filter_obj (Filter, optional): The filter to apply, or None to clear.
+        """
+        if self._id_value is None:
+            raise OalError("Source has been destroyed.")
+            
+        filter_id = filter_obj.id if filter_obj is not None else al.AL_FILTER_NULL
+        al.alSourcei(self._id, al.AL_DIRECT_FILTER, filter_id)
+        self._direct_filter_cache = filter_obj
+
+    @property
+    def spatialize(self):
+        """
+        Controls whether the source's sound is spatialized in 3D space.
+        This requires the AL_SOFT_source_spatialize extension.
+
+        Can be set to True, False, or the string 'auto'.
+        - True: The source is always spatialized.
+        - False: The source is never spatialized (non-directional).
+        - 'auto': The implementation decides (typically spatializes mono sources).
+
+        Returns:
+            int: The underlying ALenum value (AL_TRUE, AL_FALSE, or AL_AUTO_SOFT).
+        """
+        return self._get_int_property(al.AL_SOURCE_SPATIALIZE_SOFT)
+
+    @spatialize.setter
+    def spatialize(self, value):
+        if isinstance(value, bool):
+            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, al.AL_TRUE if value else al.AL_FALSE)
+        elif isinstance(value, str) and value.lower() == 'auto':
+            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, al.AL_AUTO_SOFT)
+        else:
+            # Allow setting the integer constant directly
+            self._set_int_property(al.AL_SOURCE_SPATIALIZE_SOFT, int(value))
+
+    @property
     def source_relative(self):
         """Whether the source's position is relative to the listener. Boolean."""
         return self._get_int_property(al.AL_SOURCE_RELATIVE) == al.AL_TRUE
@@ -419,3 +616,38 @@ class Source:
     @source_relative.setter
     def source_relative(self, value):
         self._set_int_property(al.AL_SOURCE_RELATIVE, al.AL_TRUE if value else al.AL_FALSE)
+
+@property
+def resampler(self) -> int:
+    """
+    Gets the index of the resampler being used by this source.
+    Requires the AL_SOFT_source_resampler extension.
+    
+    Use `pyopenal.get_available_resamplers()` to map this index to a name.
+    """
+    return self._get_int_property(al.AL_SOURCE_RESAMPLER_SOFT)
+
+@resampler.setter
+def resampler(self, value):
+    """
+    Sets the resampler for this source by its name or index.
+    Requires the AL_SOFT_source_resampler extension.
+
+    Args:
+        value (str or int): The name (e.g., 'sinc4') or index of the
+                              resampler to use.
+    """
+    if isinstance(value, str):        
+        resamplers = get_available_resamplers()
+        found = False
+        for r in resamplers:
+            if r['name'] == value:
+                self._set_int_property(al.AL_SOURCE_RESAMPLER_SOFT, r['index'])
+                found = True
+                break
+        if not found:
+            raise ValueError(f"Resampler name '{value}' not found.")
+    elif isinstance(value, int):
+        self._set_int_property(al.AL_SOURCE_RESAMPLER_SOFT, value)
+    else:
+        raise TypeError("Resampler must be set with a string (name) or an integer (index).")

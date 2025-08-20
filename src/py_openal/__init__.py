@@ -30,6 +30,7 @@ For more advanced usage, you can manage the device and context directly:
 from . import al
 from . import alc
 from .enums import PlaybackState, DistanceModel, CaptureFormat
+from .helpers import *
 
 from .device import Device, get_default_device, get_available_devices
 from .context import Context
@@ -38,21 +39,7 @@ from .source_pool import SourcePool
 from .buffer import Buffer
 from .exceptions import OalError, OalWarning
 from .loaders import open, stream
-from .environment import (
-    set_distance_model,
-    get_distance_model,
-    set_doppler_factor,
-    set_speed_of_sound,
-    defer_updates,
-    process_updates,
-    is_buffer_format_supported,
-    get_doppler_factor,
-    get_speed_of_sound,
-    get_vendor,
-    get_version,
-    get_renderer,
-    get_extensions,
-)
+from .environment import *
 from .capture import (
     CaptureDevice,
     get_default_capture_device,
@@ -85,6 +72,8 @@ __all__ = [
     'is_buffer_format_supported',
     'get_doppler_factor',
     'get_speed_of_sound',
+    'get_available_resamplers',
+    'get_default_resampler',
     'CaptureFormat',
     'CaptureDevice',
     'get_default_capture_device',
@@ -93,4 +82,6 @@ __all__ = [
     'get_version',
     'get_renderer',
     'get_extensions',
+    'seconds_to_nanoseconds',
+    'get_future_time',
 ]

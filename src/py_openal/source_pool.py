@@ -1,6 +1,7 @@
 import ctypes
 from .source import Source
 from . import al
+from .al import _get_al_ext_proc, ALint64SOFT
 from ._internal import _ensure_context
 
 def _operate_on_sources(source_list, operation_func):
@@ -32,6 +33,32 @@ def play_sources(sources):
         sources (list[Source]): A list or tuple of Source objects to play.
     """
     _operate_on_sources(sources, al.alSourcePlayv)
+
+def play_sources_at_time(sources, start_time: int):
+    """
+    Schedules a list of sources to play simultaneously at a specific time.
+    Requires the AL_SOFT_source_start_delay extension.
+
+    Args:
+        sources (list[Source]): A list or tuple of Source objects to play.
+        start_time (int): The absolute device clock time in nanoseconds.
+    """
+    _ensure_context()
+    if not sources:
+        return
+
+    if not all(isinstance(s, Source) for s in sources):
+        raise TypeError("Input must be a list or tuple of Source objects.")
+
+    proc = _get_al_ext_proc(
+        'alSourcePlayAtTimevSOFT',
+        [ctypes.c_int, ctypes.POINTER(ctypes.c_uint), ALint64SOFT],
+        None
+    )
+
+    num_sources = len(sources)
+    source_ids = (ctypes.c_uint * num_sources)(*[s.id for s in sources])
+    proc(num_sources, source_ids, start_time)
 
 def stop_sources(sources):
     """
@@ -101,6 +128,16 @@ class SourcePool:
     def play_all(self):
         """Plays all sources in the pool simultaneously."""
         play_sources(self._sources)
+
+    def play_all_at_time(self, start_time: int):
+        """
+        Schedules all sources in the pool to play simultaneously at a specific time.
+        Requires the AL_SOFT_source_start_delay extension.
+
+        Args:
+            start_time (int): The absolute device clock time in nanoseconds.
+        """
+        play_sources_at_time(self._sources, start_time)
 
     def stop_all(self):
         """Stops all sources in the pool simultaneously."""

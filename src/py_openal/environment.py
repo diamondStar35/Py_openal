@@ -1,6 +1,8 @@
 import ctypes
 from . import al
 from ._internal import _ensure_context
+from .exceptions import OalError
+from .al import _get_al_ext_proc
 
 def set_distance_model(model):
     """
@@ -131,3 +133,64 @@ def get_extensions():
     # The result is a single space-separated string
     extensions_str = ctypes.string_at(ptr).decode('utf-8')
     return extensions_str.split(' ')
+
+def get_available_resamplers() -> list[str]:
+    """
+    Gets a list of the names of available source resamplers.
+    Requires the AL_SOFT_source_resampler extension.
+
+    Returns:
+        list[str]: A list of resampler names.
+    """
+    _ensure_context()
+    num_resamplers = al.alGetInteger(al.AL_NUM_RESAMPLERS_SOFT)
+    
+    proc = _get_al_ext_proc('alGetStringiSOFT', [ctypes.c_int, ctypes.c_int], ctypes.c_char_p)
+    resamplers = []
+    for i in range(num_resamplers):
+        name_ptr = proc(al.AL_RESAMPLER_NAME_SOFT, i)
+        if name_ptr:
+            resamplers.append(name_ptr.decode('utf-8'))
+    return resamplers
+
+def get_available_resamplers() -> list[dict]:
+    """
+    Gets a list of the available source resamplers.
+    Requires the AL_SOFT_source_resampler extension.
+
+    Returns:
+        list[dict]: A list of dictionaries, where each dictionary has
+                    'name' (str) and 'index' (int) keys.
+    """
+    _ensure_context()
+    num_resamplers = al.alGetInteger(al.AL_NUM_RESAMPLERS_SOFT)
+    
+    from .al import _get_al_ext_proc
+    proc = _get_al_ext_proc('alGetStringiSOFT', [ctypes.c_int, ctypes.c_int], ctypes.c_char_p)
+
+    resamplers = []
+    for i in range(num_resamplers):
+        name_ptr = proc(al.AL_RESAMPLER_NAME_SOFT, i)
+        if name_ptr:
+            resamplers.append({'name': name_ptr.decode('utf-8'), 'index': i})
+    return resamplers
+
+def get_default_resampler() -> str:
+    """
+    Gets the name of the default source resampler.
+    Requires the AL_SOFT_source_resampler extension.
+
+    Returns:
+        str: The name of the default resampler.
+    """
+    _ensure_context()
+    resampler_index = al.alGetInteger(al.AL_DEFAULT_RESAMPLER_SOFT)
+
+    from .al import _get_al_ext_proc
+    proc = _get_al_ext_proc('alGetStringiSOFT', [ctypes.c_int, ctypes.c_int], ctypes.c_char_p)
+    
+    name_ptr = proc(al.AL_RESAMPLER_NAME_SOFT, resampler_index)
+    if name_ptr:
+        return name_ptr.decode('utf-8')
+    return ""
+
