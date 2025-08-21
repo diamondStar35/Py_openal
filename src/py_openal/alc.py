@@ -81,6 +81,13 @@ ALC_DEVICE_CLOCK_SOFT = 0x1600
 ALC_DEVICE_LATENCY_SOFT = 0x1601
 ALC_DEVICE_CLOCK_LATENCY_SOFT = 0x1602
 
+# ALC_SOFT_system_events
+ALC_PLAYBACK_DEVICE_SOFT = 0x19D4
+ALC_CAPTURE_DEVICE_SOFT = 0x19D5
+ALC_EVENT_TYPE_DEFAULT_DEVICE_CHANGED_SOFT = 0x19D6
+ALC_EVENT_TYPE_DEVICE_ADDED_SOFT = 0x19D7
+ALC_EVENT_TYPE_DEVICE_REMOVED_SOFT = 0x19D8
+
 alc_enums = {}
 local_items = list(locals().items())
 for k, v in local_items:
@@ -91,6 +98,27 @@ for k, v in local_items:
 
 class ALCError(Exception):
     pass
+
+_alc_ext_procs = {}
+def _get_alc_ext_proc(func_name, argtypes, restype):
+    """Internal helper to load and cache ALC extension functions."""
+    if func_name in _alc_ext_procs:
+        return _alc_ext_procs[func_name]
+    
+    # We use a NULL device handle to get process-wide extension functions.
+    # A context must be active to ensure the driver is loaded.
+    from ._internal import _ensure_context
+    _ensure_context()
+    
+    func_ptr = alcGetProcAddress(None, func_name.encode('utf-8'))
+    if not func_ptr:
+        # To avoid a hard crash, return None. The calling code should handle this.
+        _alc_ext_procs[func_name] = None
+        return None
+        
+    cfunc = ctypes.CFUNCTYPE(restype, *argtypes)(func_ptr)
+    _alc_ext_procs[func_name] = cfunc
+    return cfunc
 
 def alc_check_error(result, func, arguments):
     err = alcGetError(0)
@@ -197,10 +225,32 @@ alcCaptureSamples.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
 alcCaptureSamples.restype = None
 alcCaptureSamples.errcheck = alc_check_error
 
+# ALC_SOFT_loopback functions
+alcLoopbackOpenDeviceSOFT = lib.alcLoopbackOpenDeviceSOFT
+alcLoopbackOpenDeviceSOFT.argtypes = [ctypes.c_char_p]
+alcLoopbackOpenDeviceSOFT.restype = ctypes.c_void_p
+alcLoopbackOpenDeviceSOFT.errcheck = alc_check_error
+
+alcIsRenderFormatSupportedSOFT = lib.alcIsRenderFormatSupportedSOFT
+alcIsRenderFormatSupportedSOFT.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int]
+alcIsRenderFormatSupportedSOFT.restype = ctypes.c_uint8 # Returns ALCboolean
+alcIsRenderFormatSupportedSOFT.errcheck = alc_check_error
+
+alcRenderSamplesSOFT = lib.alcRenderSamplesSOFT
+alcRenderSamplesSOFT.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int]
+alcRenderSamplesSOFT.restype = None
+alcRenderSamplesSOFT.errcheck = alc_check_error
+
+# ALC_SOFT_system_events
+# We define the C-level function signature, but we will load the actual
+# function pointers on-demand in the event_handler module to avoid circular imports.
+ALCEVENTPROCSOFT = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_int, ctypes.c_void_p,
+                                     ctypes.c_int, ctypes.c_char_p, ctypes.c_void_p)
+
+
 LPALCSETTHREADCONTEXTPROC = ctypes.CFUNCTYPE(ctypes.c_uint8, ctypes.c_void_p)
 LPALCGETTHREADCONTEXTPROC = ctypes.CFUNCTYPE(ctypes.c_void_p)
 
-# openal-soft definitions
 alcGetStringiSOFT = lib.alcGetStringiSOFT
 alcGetStringiSOFT.argtypes = [ctypes.c_void_p, ctypes.c_int]
 alcGetStringiSOFT.restype = ctypes.c_char_p

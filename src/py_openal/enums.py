@@ -54,6 +54,14 @@ class SpatializeMode(IntEnum):
     ON = al.AL_TRUE
     AUTO = al.AL_AUTO_SOFT
 
+class StereoMode(IntEnum):
+    """
+    Enumeration of stereo modes for a source.
+    Requires the AL_SOFT_UHJ extension.
+    """
+    NORMAL = al.AL_NORMAL_SOFT
+    SUPER_STEREO = al.AL_SUPER_STEREO_SOFT
+
 class HrtfStatus(IntEnum):
     """
     Enumeration of possible HRTF (Head-Related Transfer Function) states
@@ -118,6 +126,17 @@ class AudioFormat(IntEnum):
     BFORMAT3D_16 = al.AL_FORMAT_BFORMAT3D_16
     BFORMAT3D_FLOAT32 = al.AL_FORMAT_BFORMAT3D_FLOAT32
 
+    # UHJ (Ambisonic)
+    UHJ2CHN8 = al.AL_FORMAT_UHJ2CHN8_SOFT
+    UHJ2CHN16 = al.AL_FORMAT_UHJ2CHN16_SOFT
+    UHJ2CHN_FLOAT32 = al.AL_FORMAT_UHJ2CHN_FLOAT32_SOFT
+    UHJ3CHN8 = al.AL_FORMAT_UHJ3CHN8_SOFT
+    UHJ3CHN16 = al.AL_FORMAT_UHJ3CHN16_SOFT
+    UHJ3CHN_FLOAT32 = al.AL_FORMAT_UHJ3CHN_FLOAT32_SOFT
+    UHJ4CHN8 = al.AL_FORMAT_UHJ4CHN8_SOFT
+    UHJ4CHN16 = al.AL_FORMAT_UHJ4CHN16_SOFT
+    UHJ4CHN_FLOAT32 = al.AL_FORMAT_UHJ4CHN_FLOAT32_SOFT
+
 class CaptureFormat(IntEnum):
     """Enumeration of possible audio capture formats."""
     MONO_8 = al.AL_FORMAT_MONO8
@@ -148,6 +167,32 @@ class FilterType(IntEnum):
     LOWPASS = al.AL_FILTER_LOWPASS
     HIGHPASS = al.AL_FILTER_HIGHPASS
     BANDPASS = al.AL_FILTER_BANDPASS
+
+class EventType(IntEnum):
+    """
+    Enumeration of event types for asynchronous notifications.
+    Requires the AL_SOFT_events extension.
+    """
+    BUFFER_COMPLETED = al.AL_EVENT_TYPE_BUFFER_COMPLETED_SOFT
+    SOURCE_STATE_CHANGED = al.AL_EVENT_TYPE_SOURCE_STATE_CHANGED_SOFT
+    DISCONNECTED = al.AL_EVENT_TYPE_DISCONNECTED_SOFT
+
+class DeviceEventType(IntEnum):
+    """
+    Enumeration of system-level device event types for asynchronous notifications.
+    Requires the ALC_SOFT_system_events extension.
+    """
+    DEFAULT_DEVICE_CHANGED = alc.ALC_EVENT_TYPE_DEFAULT_DEVICE_CHANGED_SOFT
+    DEVICE_ADDED = alc.ALC_EVENT_TYPE_DEVICE_ADDED_SOFT
+    DEVICE_REMOVED = alc.ALC_EVENT_TYPE_DEVICE_REMOVED_SOFT
+
+class DeviceType(IntEnum):
+    """
+    Enumeration of audio device types.
+    Used by the ALC_SOFT_system_events extension.
+    """
+    PLAYBACK = alc.ALC_PLAYBACK_DEVICE_SOFT
+    CAPTURE = alc.ALC_CAPTURE_DEVICE_SOFT
 
 class Waveform(IntEnum):
     """

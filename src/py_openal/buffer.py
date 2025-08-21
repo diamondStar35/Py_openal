@@ -87,6 +87,28 @@ class Buffer:
         num_sample_frames = len(samples) // (bytes_per_sample * num_channels)
         
         al.alBufferSamplesSOFT(self._id, samplerate, internal_format, num_sample_frames, channels, sample_type, samples)
+
+    def update_data(self, data_format: AudioFormat, data: bytes, offset: int):
+        """
+        Updates a subsection of the buffer's existing data.
+        This is more efficient than re-uploading the entire buffer with set_data().
+        Requires the AL_SOFT_buffer_sub_data extension.
+
+        Args:
+            data_format (AudioFormat): The format of the provided `data`. This
+                                       should match the buffer's original format.
+            data (bytes): The new chunk of raw audio data to write.
+            offset (int): The offset in bytes from the beginning of the buffer
+                          where writing should start.
+        """
+        if self._id_value is None:
+            raise OalError("Buffer has been destroyed.")
+        
+        if not data:
+            return
+
+        size = len(data)
+        al.alBufferSubDataSOFT(self._id, data_format, data, offset, size)
                 
     @property
     def id(self):

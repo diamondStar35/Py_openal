@@ -29,10 +29,12 @@ For more advanced usage, you can manage the device and context directly:
 
 from . import al
 from . import alc
+from . import event_handler
 from .enums import PlaybackState, DistanceModel, CaptureFormat
 from .helpers import *
 
 from .device import Device, get_default_device, get_available_devices
+from .loopback import LoopbackDevice
 from .context import Context
 from .source import Source
 from .source_pool import SourcePool
@@ -50,7 +52,9 @@ from .capture import (
 __all__ = [
     'al',
     'alc',
+    'event_handler',
     'Device',
+    'LoopbackDevice',
     'Context',
     'Source',
     'SourcePool',

@@ -80,6 +80,17 @@ AL_FORMAT_BFORMAT3D_8 = 0x20031
 AL_FORMAT_BFORMAT3D_16 = 0x20032
 AL_FORMAT_BFORMAT3D_FLOAT32 = 0x20033
 
+# AL_SOFT_UHJ - Ambisonic UHJ formats
+AL_FORMAT_UHJ2CHN8_SOFT = 0x19A2
+AL_FORMAT_UHJ2CHN16_SOFT = 0x19A3
+AL_FORMAT_UHJ2CHN_FLOAT32_SOFT = 0x19A4
+AL_FORMAT_UHJ3CHN8_SOFT = 0x19A5
+AL_FORMAT_UHJ3CHN16_SOFT = 0x19A6
+AL_FORMAT_UHJ3CHN_FLOAT32_SOFT = 0x19A7
+AL_FORMAT_UHJ4CHN8_SOFT = 0x19A8
+AL_FORMAT_UHJ4CHN16_SOFT = 0x19A9
+AL_FORMAT_UHJ4CHN_FLOAT32_SOFT = 0x19AA
+
 # AL_SOFT_source_spatialize
 AL_SOURCE_SPATIALIZE_SOFT = 0x1214
 AL_AUTO_SOFT = 0x0002
@@ -120,6 +131,12 @@ AL_LOOP_POINTS_SOFT = 0x2015
 AL_STEREO_ANGLES = 0x1030
 AL_SOURCE_RADIUS = 0x1031
 AL_DIRECT_CHANNELS_SOFT = 0x1033
+
+# AL_SOFT_UHJ
+AL_STEREO_MODE_SOFT = 0x19B0
+AL_NORMAL_SOFT = 0x0000
+AL_SUPER_STEREO_SOFT = 0x0001
+AL_SUPER_STEREO_WIDTH_SOFT = 0x19B1
 
 # AL_SOFT_direct_channels_remix
 AL_DROP_UNMATCHED_SOFT = 0x0001
@@ -324,6 +341,13 @@ AL_HIGHPASS_GAINLF = 0x0002
 AL_BANDPASS_GAIN = 0x0001
 AL_BANDPASS_GAINLF = 0x0002
 AL_BANDPASS_GAINHF = 0x0003
+
+# AL_SOFT_events
+AL_EVENT_CALLBACK_FUNCTION_SOFT = 0x19A2
+AL_EVENT_CALLBACK_USER_PARAM_SOFT = 0x19A3
+AL_EVENT_TYPE_BUFFER_COMPLETED_SOFT = 0x19A4
+AL_EVENT_TYPE_SOURCE_STATE_CHANGED_SOFT = 0x19A5
+AL_EVENT_TYPE_DISCONNECTED_SOFT = 0x19A6
 
 al_enums = {}
 local_items = list(locals().items())
@@ -746,6 +770,11 @@ alBufferSamplesSOFT.argtypes = [ctypes.c_uint, ctypes.c_uint, ctypes.c_int, ctyp
 alBufferSamplesSOFT.restype = None
 alBufferSamplesSOFT.errcheck = al_check_error
 
+alBufferSubDataSOFT = lib.alBufferSubDataSOFT
+alBufferSubDataSOFT.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
+alBufferSubDataSOFT.restype = None
+alBufferSubDataSOFT.errcheck = al_check_error
+
 # Effect objects
 alGenEffects = lib.alGenEffects
 alGenEffects.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_uint)]
@@ -918,4 +947,18 @@ alGetSourcei64vSOFT = lib.alGetSourcei64vSOFT
 alGetSourcei64vSOFT.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ALint64SOFT)]
 alGetSourcei64vSOFT.restype = None
 alGetSourcei64vSOFT.errcheck = al_check_error
+
+# AL_SOFT_events
+ALEVENTPROCSOFT = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_uint, ctypes.c_uint,
+                                  ctypes.c_int, ctypes.c_char_p, ctypes.c_void_p)
+
+alEventControlSOFT = lib.alEventControlSOFT
+alEventControlSOFT.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int), ctypes.c_uint8]
+alEventControlSOFT.restype = None
+alEventControlSOFT.errcheck = al_check_error
+
+alEventCallbackSOFT = lib.alEventCallbackSOFT
+alEventCallbackSOFT.argtypes = [ALEVENTPROCSOFT, ctypes.c_void_p]
+alEventCallbackSOFT.restype = None
+alEventCallbackSOFT.errcheck = al_check_error
 

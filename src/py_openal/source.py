@@ -3,7 +3,7 @@ import warnings
 import sys
 from . import al
 from .al import _get_al_ext_proc, ALint64SOFT
-from .enums import SourceType, DirectChannelsRemixMode, SpatializeMode
+from .enums import SourceType, DirectChannelsRemixMode, SpatializeMode, StereoMode
 from .environment import get_available_resamplers
 
 MAX_FLOAT = sys.float_info.max
@@ -646,6 +646,40 @@ class Source:
     @source_relative.setter
     def source_relative(self, value):
         self._set_int_property(al.AL_SOURCE_RELATIVE, al.AL_TRUE if value else al.AL_FALSE)
+
+    @property
+    def stereo_mode(self) -> StereoMode:
+        """
+        The stereo playback mode for the source.
+        Requires the AL_SOFT_UHJ extension.
+
+        Can be set to a value from the pyopenal.StereoMode enum:
+        - StereoMode.NORMAL: Standard stereo playback.
+        - StereoMode.SUPER_STEREO: An enhanced stereo mode which can provide
+          a wider sound stage. The width is controlled by the
+          `super_stereo_width` property.
+        """
+        val = self._get_int_property(al.AL_STEREO_MODE_SOFT)
+        return StereoMode(val)
+
+    @stereo_mode.setter
+    def stereo_mode(self, value: StereoMode):
+        if not isinstance(value, StereoMode):
+            raise TypeError("Value must be a StereoMode enum member.")
+        self._set_int_property(al.AL_STEREO_MODE_SOFT, value)
+
+    @property
+    def super_stereo_width(self) -> float:
+        """
+        Controls the width of the 'Super Stereo' effect when `stereo_mode` is
+        set to SUPER_STEREO. Range [0.0 to 1.0]. Default is 0.0.
+        Requires the AL_SOFT_UHJ extension.
+        """
+        return self._get_float_property(al.AL_SUPER_STEREO_WIDTH_SOFT)
+
+    @super_stereo_width.setter
+    def super_stereo_width(self, value: float):
+        self._set_float_property(al.AL_SUPER_STEREO_WIDTH_SOFT, value)
 
 @property
 def resampler(self) -> int:
