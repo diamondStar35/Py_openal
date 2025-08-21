@@ -976,6 +976,11 @@ alGetSourcei64vSOFT.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ALin
 alGetSourcei64vSOFT.restype = None
 alGetSourcei64vSOFT.errcheck = al_check_error
 
+alGetSourcedvSOFT = lib.alGetSourcedvSOFT
+alGetSourcedvSOFT.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ctypes.c_double)]
+alGetSourcedvSOFT.restype = None
+alGetSourcedvSOFT.errcheck = al_check_error
+
 # AL_EXT_debug
 ALDEBUGPROCEXT = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_int, ctypes.c_uint,
                                   ctypes.c_int, ctypes.c_int, ctypes.c_char_p,

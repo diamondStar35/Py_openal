@@ -165,6 +165,26 @@ class Source:
         return self._get_int64_property(al.AL_SEC_OFFSET_CLOCK_SOFT)
 
     @property
+    def sample_offset_with_latency(self) -> int:
+        """
+        The playback position in samples, plus the device's output latency.
+        This provides a more accurate representation of what is currently being heard.
+        This is a high-precision 64-bit integer value.
+        Requires the AL_SOFT_source_latency extension.
+        """
+        return self._get_int64_property(al.AL_SAMPLE_OFFSET_LATENCY_SOFT)
+
+    @property
+    def sec_offset_with_latency(self) -> float:
+        """
+        The playback position in seconds, plus the device's output latency.
+        This provides a more accurate representation of what is currently being heard.
+        This is a high-precision 64-bit double value.
+        Requires the AL_SOFT_source_latency extension.
+        """
+        return self._get_double_property(al.AL_SEC_OFFSET_LATENCY_SOFT)
+
+    @property
     def byte_offset(self):
         """The playback position in bytes."""
         return self._get_int_property(al.AL_BYTE_OFFSET)
@@ -425,6 +445,11 @@ class Source:
     def _get_int64_property(self, param):
         value = al.ALint64SOFT()
         al.alGetSourcei64vSOFT(self._id, param, ctypes.byref(value))
+        return value.value
+
+    def _get_double_property(self, param):
+        value = ctypes.c_double()
+        al.alGetSourcedvSOFT(self._id, param, ctypes.byref(value))
         return value.value
 
     @property
