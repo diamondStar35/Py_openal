@@ -74,6 +74,13 @@ class HrtfStatus(IntEnum):
     HEADPHONES_DETECTED = alc.ALC_HRTF_HEADPHONES_DETECTED_SOFT
     UNSUPPORTED_FORMAT = alc.ALC_HRTF_UNSUPPORTED_FORMAT_SOFT
 
+class HrtfMode(IntEnum):
+    """
+    Enumeration for enabling or disabling HRTF on a device context.
+    """
+    DISABLED = alc.ALC_FALSE
+    ENABLED = alc.ALC_TRUE
+
 class OutputMode(IntEnum):
     """
     Enumeration of possible device output modes.
@@ -245,3 +252,40 @@ class SampleType(IntEnum):
     UNSIGNED_INT = al.AL_UNSIGNED_INT_SOFT
     FLOAT = al.AL_FLOAT_SOFT
     DOUBLE = al.AL_DOUBLE_SOFT
+
+class DebugSource(IntEnum):
+    """
+    Enumeration of possible sources for a debug message.
+    Requires the AL_EXT_debug extension.
+    """
+    API = al.AL_DEBUG_SOURCE_API_EXT
+    AUDIO_SYSTEM = al.AL_DEBUG_SOURCE_AUDIO_SYSTEM_EXT
+    THIRD_PARTY = al.AL_DEBUG_SOURCE_THIRD_PARTY_EXT
+    APPLICATION = al.AL_DEBUG_SOURCE_APPLICATION_EXT
+    OTHER = al.AL_DEBUG_SOURCE_OTHER_EXT
+
+class DebugType(IntEnum):
+    """
+    Enumeration of possible types for a debug message.
+    Requires the AL_EXT_debug extension.
+    """
+    ERROR = al.AL_DEBUG_TYPE_ERROR_EXT
+    DEPRECATED_BEHAVIOR = al.AL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_EXT
+    UNDEFINED_BEHAVIOR = al.AL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_EXT
+    PORTABILITY = al.AL_DEBUG_TYPE_PORTABILITY_EXT
+    PERFORMANCE = al.AL_DEBUG_TYPE_PERFORMANCE_EXT
+    MARKER = al.AL_DEBUG_TYPE_MARKER_EXT
+    PUSH_GROUP = al.AL_DEBUG_TYPE_PUSH_GROUP_EXT
+    POP_GROUP = al.AL_DEBUG_TYPE_POP_GROUP_EXT
+    OTHER = al.AL_DEBUG_TYPE_OTHER_EXT
+
+class DebugSeverity(IntEnum):
+    """
+    Enumeration of possible severity levels for a debug message.
+    Requires the AL_EXT_debug extension.
+    """
+    HIGH = al.AL_DEBUG_SEVERITY_HIGH_EXT
+    MEDIUM = al.AL_DEBUG_SEVERITY_MEDIUM_EXT
+    LOW = al.AL_DEBUG_SEVERITY_LOW_EXT
+    NOTIFICATION = al.AL_DEBUG_SEVERITY_NOTIFICATION_EXT
+

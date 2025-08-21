@@ -218,11 +218,11 @@ class EAXReverb(Effect):
     @property
     def room_rolloff_factor(self):
         """Rolloff factor for room reflections. Range [0.0, 10.0]."""
-        return self._get_float_property(al.AL_ROOM_ROLLOFF_FACTOR)
-    
+        return self._get_float_property(al.AL_EAXREVERB_ROOM_ROLLOFF_FACTOR)
+        
     @room_rolloff_factor.setter
     def room_rolloff_factor(self, value):
-        self._set_float_property(al.AL_ROOM_ROLLOFF_FACTOR, value)
+        self._set_float_property(al.AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, value)
         
     @property
     def decay_hflimit(self):

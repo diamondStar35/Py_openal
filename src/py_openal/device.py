@@ -1,7 +1,7 @@
 import ctypes
 from . import alc
 from .exceptions import OalError
-from .enums import HrtfStatus, OutputMode
+from .enums import HrtfStatus, HrtfMode, OutputMode, ChannelLayout
 
 _device_ext_procs = {}
 
@@ -76,7 +76,8 @@ class Device:
         if attributes:
             # If HRTF is requested, we must also ensure a stereo format is requested
             # to avoid the UNSUPPORTED_FORMAT error. We add it to the attributes dict.
-            if attributes.get('hrtf') is True:
+            hrtf_request = attributes.get('hrtf')
+            if hrtf_request is True or hrtf_request == HrtfMode.ENABLED:
                 attributes['output_mode'] = OutputMode.STEREO_HRTF
 
             # We need to import the builder function here to avoid circular dependencies
@@ -419,15 +420,15 @@ class Device:
         if not alc.alcIsExtensionPresent(self._device, b"ALC_SOFT_HRTF"):
             raise OalError("HRTF extension not present on this device.")
 
-        attr = [
-            alc.ALC_FORMAT_CHANNELS_SOFT, alc.ALC_STEREO_SOFT,
-            alc.ALC_HRTF_SOFT, alc.ALC_TRUE
-        ]
+        attrs = {
+            'format_channels': ChannelLayout.STEREO,
+            'hrtf': HrtfMode.ENABLED,
+            'output_mode': OutputMode.STEREO_HRTF,
+        }
 
         if requested_hrtf is not None:
             hrtf_id = -1
             if isinstance(requested_hrtf, str):
-                # Find the ID for the given name
                 found = False
                 for hrtf_profile in self.available_hrtfs:
                     if hrtf_profile['name'] == requested_hrtf:
@@ -441,16 +442,17 @@ class Device:
             else:
                 raise TypeError("requested_hrtf must be a string (name) or an integer (ID).")
 
-            attr.extend([alc.ALC_HRTF_ID_SOFT, hrtf_id])
+            attrs['hrtf_id'] = hrtf_id
         
-        attr.append(0) # Null terminator
+        from .context import _build_attribute_list
+        attr_list = _build_attribute_list(attrs)
         
-        if not self.reset(attr):
+        if not self.reset(attr_list):
             raise OalError("Failed to reset device with HRTF attributes.")
 
         # Check if HRTF is now enabled
         hrtf_state = ctypes.c_int(0)
-        alc.alcGetIntegerv(self._device, alc.ALC_HRTF_SOFT, 1, ctypes.byref(hrtf_state))
+        alc.alcGetIntegerv(self._device, alc.ALC_HRTF_STATUS_SOFT, 1, ctypes.byref(hrtf_state))
         
         return hrtf_state.value == alc.ALC_TRUE
 

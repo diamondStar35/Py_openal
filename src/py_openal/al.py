@@ -170,6 +170,8 @@ AL_SAMPLE_LENGTH_SOFT = 0x200A
 AL_SEC_LENGTH_SOFT = 0x200B
 
 # AL_SOFT_source_latency
+AL_SAMPLE_OFFSET_LATENCY_SOFT = 0x1200 # <-- ADD THIS LINE
+AL_SEC_OFFSET_LATENCY_SOFT = 0x1201 # <-- ADD THIS LINE
 AL_SAMPLE_OFFSET_CLOCK_SOFT = 0x1202
 AL_SEC_OFFSET_CLOCK_SOFT = 0x1203
 
@@ -227,6 +229,7 @@ AL_REVERB_REFLECTIONS_DELAY = 0x0008
 AL_REVERB_LATE_REVERB_GAIN = 0x0009
 AL_REVERB_LATE_REVERB_DELAY = 0x000A
 AL_REVERB_AIR_ABSORPTION_GAINHF = 0x000B
+AL_REVERB_ROOM_ROLLOFF_FACTOR = 0x000C
 AL_REVERB_DECAY_HFLIMIT = 0x000D
 
 # EAX Reverb Effect Parameters
@@ -251,6 +254,7 @@ AL_EAXREVERB_MODULATION_DEPTH = 0x0012
 AL_EAXREVERB_AIR_ABSORPTION_GAINHF = 0x0013
 AL_EAXREVERB_HFREFERENCE = 0x0014
 AL_EAXREVERB_LFREFERENCE = 0x0015
+AL_EAXREVERB_ROOM_ROLLOFF_FACTOR = 0x0016
 AL_EAXREVERB_DECAY_HFLIMIT = 0x0017
 
 # Chorus Effect Parameters
@@ -348,6 +352,30 @@ AL_EVENT_CALLBACK_USER_PARAM_SOFT = 0x19A3
 AL_EVENT_TYPE_BUFFER_COMPLETED_SOFT = 0x19A4
 AL_EVENT_TYPE_SOURCE_STATE_CHANGED_SOFT = 0x19A5
 AL_EVENT_TYPE_DISCONNECTED_SOFT = 0x19A6
+
+# AL_EXT_debug
+AL_DONT_CARE_EXT = 0x0002
+AL_DEBUG_OUTPUT_EXT = 0x19B2
+AL_DEBUG_CALLBACK_FUNCTION_EXT = 0x19B3
+AL_DEBUG_CALLBACK_USER_PARAM_EXT = 0x19B4
+AL_DEBUG_SOURCE_API_EXT = 0x19B5
+AL_DEBUG_SOURCE_AUDIO_SYSTEM_EXT = 0x19B6
+AL_DEBUG_SOURCE_THIRD_PARTY_EXT = 0x19B7
+AL_DEBUG_SOURCE_APPLICATION_EXT = 0x19B8
+AL_DEBUG_SOURCE_OTHER_EXT = 0x19B9
+AL_DEBUG_TYPE_ERROR_EXT = 0x19BA
+AL_DEBUG_TYPE_DEPRECATED_BEHAVIOR_EXT = 0x19BB
+AL_DEBUG_TYPE_UNDEFINED_BEHAVIOR_EXT = 0x19BC
+AL_DEBUG_TYPE_PORTABILITY_EXT = 0x19BD
+AL_DEBUG_TYPE_PERFORMANCE_EXT = 0x19BE
+AL_DEBUG_TYPE_MARKER_EXT = 0x19BF
+AL_DEBUG_TYPE_PUSH_GROUP_EXT = 0x19C0
+AL_DEBUG_TYPE_POP_GROUP_EXT = 0x19C1
+AL_DEBUG_TYPE_OTHER_EXT = 0x19C2
+AL_DEBUG_SEVERITY_HIGH_EXT = 0x19C3
+AL_DEBUG_SEVERITY_MEDIUM_EXT = 0x19C4
+AL_DEBUG_SEVERITY_LOW_EXT = 0x19C5
+AL_DEBUG_SEVERITY_NOTIFICATION_EXT = 0x19C6
 
 al_enums = {}
 local_items = list(locals().items())
@@ -947,6 +975,31 @@ alGetSourcei64vSOFT = lib.alGetSourcei64vSOFT
 alGetSourcei64vSOFT.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.POINTER(ALint64SOFT)]
 alGetSourcei64vSOFT.restype = None
 alGetSourcei64vSOFT.errcheck = al_check_error
+
+# AL_EXT_debug
+ALDEBUGPROCEXT = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_int, ctypes.c_uint,
+                                  ctypes.c_int, ctypes.c_int, ctypes.c_char_p,
+                                  ctypes.c_void_p)
+
+def debug_message_callback_ext(callback, user_param):
+    proc = _get_al_ext_proc('alDebugMessageCallbackEXT', [ALDEBUGPROCEXT, ctypes.c_void_p], None)
+    proc.errcheck = None # This function should not have an error check
+    proc(callback, user_param)
+
+def debug_message_control_ext(source, msg_type, severity, count, ids, enable):
+    proc = _get_al_ext_proc('alDebugMessageControlEXT',
+                            [ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int,
+                             ctypes.POINTER(ctypes.c_uint), ctypes.c_uint8],
+                            None)
+    proc(source, msg_type, severity, count, ids, enable)
+
+def debug_message_insert_ext(source, msg_type, msg_id, severity, message):
+    encoded_msg = message.encode('utf-8')
+    proc = _get_al_ext_proc('alDebugMessageInsertEXT',
+                            [ctypes.c_int, ctypes.c_int, ctypes.c_uint,
+                             ctypes.c_int, ctypes.c_int, ctypes.c_char_p],
+                            None)
+    proc(source, msg_type, msg_id, severity, len(encoded_msg), encoded_msg)
 
 # AL_SOFT_events
 ALEVENTPROCSOFT = ctypes.CFUNCTYPE(None, ctypes.c_int, ctypes.c_uint, ctypes.c_uint,

@@ -30,6 +30,7 @@ For more advanced usage, you can manage the device and context directly:
 from . import al
 from . import alc
 from . import event_handler
+from . import debug
 from .enums import PlaybackState, DistanceModel, CaptureFormat
 from .helpers import *
 

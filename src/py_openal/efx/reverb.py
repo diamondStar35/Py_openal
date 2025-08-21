@@ -122,7 +122,22 @@ class Reverb(Effect):
     @air_absorption_gainhf.setter
     def air_absorption_gainhf(self, value):
         self._set_float_property(al.AL_REVERB_AIR_ABSORPTION_GAINHF, value)
-            
+
+    @property
+    def room_rolloff_factor(self):
+        """
+        Controls the attenuation of the reverberated (wet) signal over
+        distance. Range [0.0, 10.0]. Default is 0.0.
+        
+        This is a per-effect setting that works in conjunction with the
+        per-source `room_rolloff_factor`.
+        """
+        return self._get_float_property(al.AL_REVERB_ROOM_ROLLOFF_FACTOR)
+
+    @room_rolloff_factor.setter
+    def room_rolloff_factor(self, value):
+        self._set_float_property(al.AL_REVERB_ROOM_ROLLOFF_FACTOR, value)            
+
     @property
     def decay_hflimit(self):
         """If true, high-frequency decay is limited by the air absorption gain. Boolean."""
