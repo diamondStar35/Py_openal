@@ -5,9 +5,6 @@ from .source import Source
 from .exceptions import OalWarning, OalError
 from .enums import AudioFormat
 
-# Default values, can be configured by the user later
-STREAM_BUFFER_COUNT = 3  # Use 3 buffers for smoother playback
-STREAM_BUFFER_SIZE = 4096 * 8
 
 def _channels_to_al_format(channels, bits) -> AudioFormat:
     """Helper to determine the OpenAL format enum."""
@@ -23,7 +20,7 @@ class SourceStream(Source):
     A Source subclass for streaming audio from a file-like object.
     It automatically manages a set of internal buffers.
     """
-    def __init__(self, audio_file):
+    def __init__(self, audio_file, buffer_count=3, buffer_size=4096 * 8):
         """
         Creates a streaming source.
 
@@ -32,10 +29,16 @@ class SourceStream(Source):
                         such as WaveFileStream or a pyogg stream object.
                         It must have `channels`, `frequency`, `bit_depth` (or similar)
                         attributes and a `get_buffer()` method.
+            buffer_count (int, optional): The number of internal buffers to
+                                          use for streaming. Defaults to 3.
+            buffer_size (int, optional): The size of each internal buffer in
+                                         bytes. Defaults to 32768.
         """
         super().__init__()
         self.audio_file = audio_file
-        
+        self.buffer_count = buffer_count
+        self.buffer_size = buffer_size
+                
         # Determine audio format
         # Assuming 16-bit audio if not specified, which is common.
         bits = getattr(audio_file, 'bit_depth', 16) 
@@ -55,8 +58,8 @@ class SourceStream(Source):
         """Fills a single buffer with data from the stream and queues it."""
         if self._is_finished:
             return False
-            
-        data = self.audio_file.get_buffer(STREAM_BUFFER_SIZE)
+
+        data = self.audio_file.get_buffer(self.buffer_size)            
         if data:
             al.alBufferData(buf_id, self.al_format, data, len(data), self.audio_file.frequency)
             al.alSourceQueueBuffers(self._id, 1, ctypes.byref(ctypes.c_uint(buf_id)))
@@ -113,6 +116,6 @@ class SourceStream(Source):
                 processed_buffers = (ctypes.c_uint * queued_count)()
                 al.alSourceUnqueueBuffers(self._id, queued_count, processed_buffers)
 
-            al.alDeleteBuffers(STREAM_BUFFER_COUNT, self._buffers)
+            al.alDeleteBuffers(self.buffer_count, self._buffers)
         
         super().destroy()

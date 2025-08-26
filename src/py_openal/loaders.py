@@ -79,8 +79,7 @@ def open(filepath, extension=None):
     else:
         raise OalError(f"Unsupported file format: {extension}. Or required library (PyOgg) is not installed.")
 
-
-def stream(filepath, extension=None):
+def stream(filepath, extension=None, buffer_count=3, buffer_size=4096 * 8):
     """
     Opens an audio file for streaming and returns a SourceStream.
 
@@ -88,6 +87,10 @@ def stream(filepath, extension=None):
         filepath (str): Path to the audio file.
         extension (str, optional): File extension hint (e.g., '.wav', '.ogg').
                                    Defaults to detecting from filepath.
+        buffer_count (int, optional): The number of internal buffers to use for
+                                      streaming. Defaults to 3.
+        buffer_size (int, optional): The size of each internal buffer in bytes.
+                                     Defaults to 32768.
 
     Returns:
         A pyopenal.SourceStream object ready for playback.
@@ -98,9 +101,9 @@ def stream(filepath, extension=None):
 
     if extension == '.wav':
         audio_stream = WaveFileStream(filepath)
-        return SourceStream(audio_stream)
+        return SourceStream(audio_stream, buffer_count=buffer_count, buffer_size=buffer_size)
     elif PYOGG_OK and extension in ('.ogg', '.opus'):
         audio_stream = VorbisFileStream(filepath) if extension == '.ogg' else OpusFileStream(filepath)
-        return SourceStream(audio_stream)
+        return SourceStream(audio_stream, buffer_count=buffer_count, buffer_size=buffer_size)
     else:
         raise OalError(f"Unsupported file format for streaming: {extension}. Or required library (PyOgg) is not installed.")
