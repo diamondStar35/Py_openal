@@ -3,7 +3,7 @@ import warnings
 import sys
 from . import al
 from .al import _get_al_ext_proc, ALint64SOFT
-from .enums import SourceType, DirectChannelsRemixMode, SpatializeMode, StereoMode
+from .enums import PlaybackState, SourceType, DirectChannelsRemixMode, SpatializeMode, StereoMode
 from .environment import get_available_resamplers
 
 MAX_FLOAT = sys.float_info.max
@@ -107,10 +107,10 @@ class Source:
         
     @property
     def state(self):
-        """The current playback state (e.g., al.AL_PLAYING)."""
+        """The current playback state (e.g., PlaybackState.PLAYING)."""
         value = ctypes.c_int()
         al.alGetSourcei(self._id, al.AL_SOURCE_STATE, ctypes.byref(value))
-        return value.value
+        return PlaybackState(value.value)
 
     @property
     def source_type(self) -> SourceType:
