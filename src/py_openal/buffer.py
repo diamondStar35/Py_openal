@@ -1,27 +1,34 @@
 import ctypes
 import warnings
 from . import al
-from .enums import ChannelLayout, SampleType, AudioFormat
+from .enums import ChannelLayout, SampleType, AudioFormat, AmbisonicLayout, AmbisonicScaling
+from .exceptions import OalError
 
 class Buffer:
     """Represents an OpenAL buffer for storing audio data."""
 
-    def __init__(self, data_format: AudioFormat, data, size, frequency):
+    def __init__(self, data_format: AudioFormat = None, data=None, size=None, frequency=None):
         """
-        Creates an OpenAL buffer and fills it with audio data.
-        
+        Creates an OpenAL buffer, optionally filling it with audio data.
+
+        If data is provided, the buffer is filled immediately. If not, an
+        empty buffer is created, which can be configured and filled later
+        using methods like set_data() or set_data_samples().
+
         Args:
-            data_format (AudioFormat): The format of the provided `data`.
-            data (bytes): The raw audio data bytes.
-            size (int): The size of the data in bytes.
-            frequency (int): The sample rate of the audio in Hz.
+            data_format (AudioFormat, optional): The format of the provided `data`.
+            data (bytes, optional): The raw audio data bytes.
+            size (int, optional): The size of the data in bytes.
+            frequency (int, optional): The sample rate of the audio in Hz.
         """
         self._id = ctypes.c_uint()
         al.alGenBuffers(1, ctypes.pointer(self._id))
-        
         self._id_value = self._id.value
-        
-        al.alBufferData(self._id, data_format, data, size, frequency)
+
+        if data is not None:
+            if data_format is None or size is None or frequency is None:
+                raise ValueError("data_format, size, and frequency must be provided if data is given.")
+            al.alBufferData(self._id, data_format, data, size, frequency)
 
     def set_data(self, data_format, data, size, frequency):
         """
@@ -187,6 +194,86 @@ class Buffer:
         Requires the AL_SOFT_buffer_samples extension.
         """
         return self._get_float_property(al.AL_SEC_LENGTH_SOFT)
+
+    @property
+    def ambisonic_layout(self) -> 'AmbisonicLayout':
+        """
+        The channel layout for Ambisonic (B-Format) data in this buffer.
+        Requires the AL_SOFT_bformat_ex extension.
+
+        Returns:
+            AmbisonicLayout: The layout enum (e.g., AmbisonicLayout.FUMA).
+        """
+        val = self._get_int_property(al.AL_AMBISONIC_LAYOUT_SOFT)
+        return AmbisonicLayout(val)
+
+    @ambisonic_layout.setter
+    def ambisonic_layout(self, value: 'AmbisonicLayout'):
+        """
+        Sets the Ambisonic channel layout for this buffer.
+
+        Args:
+            value (AmbisonicLayout): The layout enum to set.
+        """
+        if self._id_value is None:
+            raise OalError("Buffer has been destroyed.")
+        al.alBufferi(self._id, al.AL_AMBISONIC_LAYOUT_SOFT, value)
+
+    @property
+    def ambisonic_scaling(self) -> 'AmbisonicScaling':
+        """
+        The normalization scaling for Ambisonic (B-Format) data in this buffer.
+        Requires the AL_SOFT_bformat_ex extension.
+
+        Returns:
+            AmbisonicScaling: The scaling enum (e.g., AmbisonicScaling.SN3D).
+        """
+        val = self._get_int_property(al.AL_AMBISONIC_SCALING_SOFT)
+        return AmbisonicScaling(val)
+
+    @ambisonic_scaling.setter
+    def ambisonic_scaling(self, value: 'AmbisonicScaling'):
+        """
+        Sets the Ambisonic normalization scaling for this buffer.
+
+        Args:
+            value (AmbisonicScaling): The scaling enum to set.
+        """
+        if self._id_value is None:
+            raise OalError("Buffer has been destroyed.")
+        al.alBufferi(self._id, al.AL_AMBISONIC_SCALING_SOFT, value)
+
+    @property
+    def ambisonic_order(self) -> int:
+        """
+        The order for Higher-Order Ambisonics (HOA) data in this buffer.
+        Requires the AL_SOFT_bformat_hoa extension.
+
+        The order determines the number of channels used for the soundfield:
+        - 1st order: 4 channels
+        - 2nd order: 9 channels
+        - 3rd order: 16 channels
+        - etc.
+
+        Returns:
+            int: The Ambisonic order (e.g., 1, 2, 3).
+        """
+        return self._get_int_property(al.AL_UNPACK_AMBISONIC_ORDER_SOFT)
+
+    @ambisonic_order.setter
+    def ambisonic_order(self, value: int):
+        """
+        Sets the Ambisonic order for this buffer.
+
+        This must be set before calling set_data or set_data_samples if the
+        buffer format is a B-Format type.
+
+        Args:
+            value (int): The Ambisonic order to set (e.g., 1, 2, 3).
+        """
+        if self._id_value is None:
+            raise OalError("Buffer has been destroyed.")
+        al.alBufferi(self._id, al.AL_UNPACK_AMBISONIC_ORDER_SOFT, int(value))
 
     def destroy(self):
         """Releases the OpenAL buffer resource."""

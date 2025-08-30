@@ -28,6 +28,9 @@ _ATTRIBUTES = {
     'format_type': alc.ALC_FORMAT_TYPE_SOFT,
     'output_mode': alc.ALC_OUTPUT_MODE_SOFT,
     'output_limiter': alc.ALC_OUTPUT_LIMITER_SOFT,
+    'ambisonic_layout': alc.ALC_AMBISONIC_LAYOUT_SOFT,
+    'ambisonic_scaling': alc.ALC_AMBISONIC_SCALING_SOFT,
+    'ambisonic_order': alc.ALC_AMBISONIC_ORDER_SOFT,
 }
 
 def _build_attribute_list(attributes_dict):

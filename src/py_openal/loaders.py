@@ -12,6 +12,16 @@ try:
 except ImportError:
     MINIAUDIO_OK = False
 
+try:
+    from pyogg import VorbisFile, VorbisFileStream, OpusFile, OpusFileStream
+    PYOGG_OK = True
+except ImportError:
+    PYOGG_OK = False
+    class VorbisFile: pass
+    class VorbisFileStream: pass
+    class OpusFile: pass
+    class OpusFileStream: pass
+
 
 class WaveFile:
     """Loads a full wave file into memory."""
@@ -91,17 +101,6 @@ class MiniAudioStream:
     def close(self):
         if not self.is_closed:
             self.is_closed = True
-
-
-try:
-    from pyogg import VorbisFile, VorbisFileStream, OpusFile, OpusFileStream
-    PYOGG_OK = True
-except ImportError:
-    PYOGG_OK = False
-    class VorbisFile: pass
-    class VorbisFileStream: pass
-    class OpusFile: pass
-    class OpusFileStream: pass
 
 
 def open(filepath, extension=None):

@@ -238,6 +238,7 @@ class ChannelLayout(IntEnum):
     SURROUND_5_1 = al.AL_5POINT1_SOFT
     SURROUND_6_1 = al.AL_6POINT1_SOFT
     SURROUND_7_1 = al.AL_7POINT1_SOFT
+    BFORMAT3D = alc.ALC_BFORMAT3D_SOFT
 
 class SampleType(IntEnum):
     """
@@ -252,6 +253,23 @@ class SampleType(IntEnum):
     UNSIGNED_INT = al.AL_UNSIGNED_INT_SOFT
     FLOAT = al.AL_FLOAT_SOFT
     DOUBLE = al.AL_DOUBLE_SOFT
+
+class AmbisonicLayout(IntEnum):
+    """
+    Enumeration of channel layouts for Ambisonic (B-Format) buffer data.
+    Requires the AL_SOFT_bformat_ex extension.
+    """
+    FUMA = al.AL_FUMA_SOFT  # Furse-Malham channel ordering (WXYZ)
+    ACN = al.AL_ACN_SOFT   # Ambisonic Channel Number ordering
+
+class AmbisonicScaling(IntEnum):
+    """
+    Enumeration of normalization scaling for Ambisonic (B-Format) buffer data.
+    Requires the AL_SOFT_bformat_ex extension.
+    """
+    FUMA = al.AL_FUMA_SOFT    # Furse-Malham scaling
+    SN3D = al.AL_SN3D_SOFT    # Schmidt Semi-Normalization
+    N3D = al.AL_N3D_SOFT      # Full 3D Normalization
 
 class DebugSource(IntEnum):
     """

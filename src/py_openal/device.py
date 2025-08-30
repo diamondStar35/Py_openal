@@ -386,6 +386,19 @@ class Device:
         return hrtf_name.decode('utf-8')
 
     @property
+    def max_ambisonic_order(self) -> int:
+        """
+        The maximum Ambisonic order supported for loopback rendering on this device.
+        Requires the ALC_SOFT_loopback_bformat extension.
+        """
+        if self.is_closed:
+            raise OalError("Device is closed.")
+        
+        order = ctypes.c_int(0)
+        alc.alcGetIntegerv(self._device, alc.ALC_MAX_AMBISONIC_ORDER_SOFT, 1, ctypes.byref(order))
+        return order.value
+
+    @property
     def output_mode(self) -> OutputMode:
         """
         The current output mode of the device (e.g., Stereo, HRTF, 7.1 Surround).

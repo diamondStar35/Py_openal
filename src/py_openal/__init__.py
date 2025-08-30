@@ -29,9 +29,10 @@ For more advanced usage, you can manage the device and context directly:
 
 from . import al
 from . import alc
+from . import efx
 from . import event_handler
 from . import debug
-from .enums import PlaybackState, DistanceModel, CaptureFormat
+from .enums import PlaybackState, DistanceModel, CaptureFormat, EffectType, FilterType
 from .helpers import *
 
 from .device import Device, get_default_device, get_available_devices
@@ -40,6 +41,7 @@ from .context import Context
 from .source import Source
 from .source_pool import SourcePool
 from .buffer import Buffer
+from .callback_source import CallbackSource
 from .exceptions import OalError, OalWarning
 from .loaders import open, stream
 from .environment import *
@@ -59,6 +61,7 @@ __all__ = [
     'Context',
     'Source',
     'SourcePool',
+    'CallbackSource',
     'Buffer',
     'open',
     'stream',

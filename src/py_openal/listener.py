@@ -98,3 +98,4 @@ class Listener:
     @meters_per_unit.setter
     def meters_per_unit(self, value):
         al.alListenerf(al.AL_METERS_PER_UNIT, float(value))
+
